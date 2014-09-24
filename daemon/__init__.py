@@ -12,6 +12,7 @@
 # No warranty expressed or implied. See the file LICENSE.PSF-2 for details.
 
 """ Library to implement a well-behaved Unix daemon process.
+    This is a fork of "python-daemon" to support Python 3.x
 
     This library implements the well-behaved daemon specification of
     :pep:`3143`, "Standard daemon process library".
@@ -35,6 +36,8 @@
     setting options on the `DaemonContext` instance; see the
     documentation for that class for each option.
 
+    Source: https://github.com/jbvsmo/python-daemon
+
     """
 
 from . import version
@@ -44,4 +47,4 @@ from .daemon import DaemonContext
 _version = version.version
 _copyright = version.copyright
 _license = version.license
-_url = "http://pypi.python.org/pypi/python-daemon-3K/"
+_url = "https://github.com/jbvsmo/python-daemon"
