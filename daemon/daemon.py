@@ -42,6 +42,21 @@ class DaemonProcessDetachError(DaemonError, OSError):
     """ Exception raised when process detach fails. """
 
 
+def _has_fileno(file_descriptor):
+    """ Test if the file descriptor has a fileno.
+        On Python 2.x, just checking for the attribute would solve the problem
+        when using `io.StringIO`. Now the function must be called so it will
+        raise `io.UnsuportedOperation` (Subclass of `ValueError`).
+
+        :return: bool
+    """
+    try:
+        file_descriptor.fileno()
+    except (AttributeError, ValueError):
+        return False
+    return True
+
+
 class DaemonContext(object):
     """ Context for turning the current program into a daemon process.
 
@@ -422,12 +437,12 @@ class DaemonContext(object):
             files_preserve = []
         files_preserve.extend(
             item for item in [self.stdin, self.stdout, self.stderr]
-            if hasattr(item, 'fileno'))
+            if _has_fileno(item))
         exclude_descriptors = set()
         for item in files_preserve:
             if item is None:
                 continue
-            if hasattr(item, 'fileno'):
+            if _has_fileno(item):
                 exclude_descriptors.add(item.fileno())
             else:
                 exclude_descriptors.add(item)
