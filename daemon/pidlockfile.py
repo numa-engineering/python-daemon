@@ -17,20 +17,24 @@ import os
 import errno
 
 from lockfile import (
-    LinkFileLock,
     AlreadyLocked, LockFailed,
     NotLocked, NotMyLock,
-    )
+)
 
-
+try:
+    from lockfile.linklockfile import LinkLockFile
+except ImportError:
+    from lockfile import LinkFileLock as LinkLockFile
+
+
 class PIDFileError(Exception):
     """ Abstract base class for errors specific to PID files. """
 
 class PIDFileParseError(ValueError, PIDFileError):
     """ Raised when parsing contents of PID file fails. """
 
-
-class PIDLockFile(LinkFileLock, object):
+
+class PIDLockFile(LinkLockFile, object):
     """ Lockfile implemented as a Unix PID file.
 
         The PID file is named by the attribute `path`. When locked,
