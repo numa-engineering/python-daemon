@@ -9,11 +9,15 @@
 # under the terms of the Python Software Foundation License, version 2 or
 # later as published by the Python Software Foundation.
 # No warranty expressed or implied. See the file LICENSE.PSF-2 for details.
+from __future__ import absolute_import
 
-""" Unit test suite for daemon package.
-    """
+"""
+    Unit test suite for daemon package.
+"""
 
-import scaffold
+try:
+    from . import scaffold
+except ImportError:
+    import scaffold
 
-
 suite = scaffold.make_suite()

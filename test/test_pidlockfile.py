@@ -13,9 +13,17 @@
 """ Unit test for pidlockfile module.
     """
 
-import __builtin__ as builtins
+try:
+    import __builtin__ as builtins
+except ImportError:
+    import builtins
+
 import os
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 import itertools
 import tempfile
 import errno
@@ -23,23 +31,28 @@ import errno
 import lockfile
 
 import scaffold
+try:
+    from lockfile.linklockfile import LinkLockFile
+except ImportError:
+    from lockfile import LinkFileLock as LinkLockFile
+
 from daemon import pidlockfile
 
-
+
 class FakeFileDescriptorStringIO(StringIO, object):
     """ A StringIO class that fakes a file descriptor. """
 
     _fileno_generator = itertools.count()
 
     def __init__(self, *args, **kwargs):
-        self._fileno = self._fileno_generator.next()
+        self._fileno = next(self._fileno_generator)
         super_instance = super(FakeFileDescriptorStringIO, self)
         super_instance.__init__(*args, **kwargs)
 
     def fileno(self):
         return self._fileno
 
-
+
 class Exception_TestCase(scaffold.Exception_TestCase):
     """ Test cases for module exception classes. """
 
@@ -49,16 +62,16 @@ class Exception_TestCase(scaffold.Exception_TestCase):
 
         self.valid_exceptions = {
             pidlockfile.PIDFileError: dict(
-                min_args = 1,
-                types = (Exception,),
-                ),
+                min_args=1,
+                types=(Exception,),
+            ),
             pidlockfile.PIDFileParseError: dict(
                 min_args = 2,
                 types = (pidlockfile.PIDFileError, ValueError),
-                ),
-            }
+            ),
+        }
 
-
+
 def make_pidlockfile_scenarios():
     """ Make a collection of scenarios for testing PIDLockFile instances. """
 
@@ -68,11 +81,11 @@ def make_pidlockfile_scenarios():
 
     mock_pidfile_empty = FakeFileDescriptorStringIO()
     mock_pidfile_current_pid = FakeFileDescriptorStringIO(
-        u"%(mock_current_pid)d\n" % vars())
+        "%(mock_current_pid)d\n" % vars())
     mock_pidfile_other_pid = FakeFileDescriptorStringIO(
-        u"%(mock_other_pid)d\n" % vars())
+        "%(mock_other_pid)d\n" % vars())
     mock_pidfile_bogus = FakeFileDescriptorStringIO(
-        u"b0gUs")
+        "b0gUs")
 
     scenarios = {
         'simple': {},
@@ -121,7 +134,7 @@ def make_pidlockfile_scenarios():
             },
         }
 
-    for scenario in scenarios.values():
+    for scenario in list(scenarios.values()):
         scenario['pid'] = mock_current_pid
         scenario['path'] = mock_pidfile_path
         if 'pidfile' not in scenario:
@@ -154,7 +167,7 @@ def setup_pidfile_fixtures(testcase):
         return value
 
     scaffold.mock(
-        u"os.getpid",
+        "os.getpid",
         returns=scenarios['simple']['pid'],
         tracker=testcase.mock_tracker)
 
@@ -163,7 +176,7 @@ def setup_pidfile_fixtures(testcase):
         def mock_open_nonexist(filename, mode, buffering):
             if 'r' in mode:
                 raise IOError(
-                    errno.ENOENT, u"No such file %(filename)r" % vars())
+                    errno.ENOENT, "No such file %(filename)r" % vars())
             else:
                 result = testcase.scenario['pidfile']
             return result
@@ -171,7 +184,7 @@ def setup_pidfile_fixtures(testcase):
         def mock_open_read_denied(filename, mode, buffering):
             if 'r' in mode:
                 raise IOError(
-                    errno.EPERM, u"Read denied on %(filename)r" % vars())
+                    errno.EPERM, "Read denied on %(filename)r" % vars())
             else:
                 result = testcase.scenario['pidfile']
             return result
@@ -185,7 +198,7 @@ def setup_pidfile_fixtures(testcase):
                 result = testcase.scenario['pidfile'].fileno()
             else:
                 raise OSError(
-                    errno.ENOENT, u"No such file %(filename)r" % vars())
+                    errno.ENOENT, "No such file %(filename)r" % vars())
             return result
 
         def mock_os_open_read_denied(filename, flags, mode):
@@ -193,7 +206,7 @@ def setup_pidfile_fixtures(testcase):
                 result = testcase.scenario['pidfile'].fileno()
             else:
                 raise OSError(
-                    errno.EPERM, u"Read denied on %(filename)r" % vars())
+                    errno.EPERM, "Read denied on %(filename)r" % vars())
             return result
 
         def mock_os_open_okay(filename, flags, mode):
@@ -219,7 +232,7 @@ def setup_pidfile_fixtures(testcase):
         return result
 
     scaffold.mock(
-        u"builtins.open",
+        "builtins.open",
         returns_func=mock_open,
         tracker=testcase.mock_tracker)
 
@@ -234,7 +247,7 @@ def setup_pidfile_fixtures(testcase):
         return result
 
     scaffold.mock(
-        u"os.open",
+        "os.open",
         returns_func=mock_os_open,
         tracker=testcase.mock_tracker)
 
@@ -244,11 +257,11 @@ def setup_pidfile_fixtures(testcase):
         if fd == testcase.scenario['pidfile'].fileno():
             result = testcase.scenario['pidfile']
         else:
-            raise OSError(errno.EBADF, u"Bad file descriptor")
+            raise OSError(errno.EBADF, "Bad file descriptor")
         return result
 
     scaffold.mock(
-        u"os.fdopen",
+        "os.fdopen",
         returns_func=mock_os_fdopen,
         tracker=testcase.mock_tracker)
 
@@ -284,7 +297,7 @@ def setup_lockfile_method_mocks(testcase, scenario, class_name):
         'acquire', 'release', 'break_lock',
         ]:
         mock_func = vars()["mock_%(func_name)s" % vars()]
-        lockfile_func_name = u"%(class_name)s.%(func_name)s" % vars()
+        lockfile_func_name = "%(class_name)s.%(func_name)s" % vars()
         mock_lockfile_func = scaffold.Mock(
             lockfile_func_name,
             returns_func=mock_func,
@@ -297,17 +310,17 @@ def setup_lockfile_method_mocks(testcase, scenario, class_name):
         except NameError:
             pass
 
-
+
 def setup_pidlockfile_fixtures(testcase, scenario_name=None):
     """ Set up common fixtures for PIDLockFile test cases. """
 
     setup_pidfile_fixtures(testcase)
 
     scaffold.mock(
-        u"pidlockfile.write_pid_to_pidfile",
+        "pidlockfile.write_pid_to_pidfile",
         tracker=testcase.mock_tracker)
     scaffold.mock(
-        u"pidlockfile.remove_existing_pidfile",
+        "pidlockfile.remove_existing_pidfile",
         tracker=testcase.mock_tracker)
 
     if scenario_name is not None:
@@ -318,7 +331,7 @@ def set_pidlockfile_scenario(testcase, scenario_name, clear_tracker=True):
     """ Set up the test case to the specified scenario. """
     testcase.scenario = testcase.pidlockfile_scenarios[scenario_name]
     setup_lockfile_method_mocks(
-        testcase, testcase.scenario, u"lockfile.LinkFileLock")
+        testcase, testcase.scenario, "LinkLockFile")
     testcase.pidlockfile_args = dict(
         path=testcase.scenario['path'],
         )
@@ -327,7 +340,7 @@ def set_pidlockfile_scenario(testcase, scenario_name, clear_tracker=True):
     if clear_tracker:
         testcase.mock_tracker.clear()
 
-
+
 class PIDLockFile_TestCase(scaffold.TestCase):
     """ Test cases for PIDLockFile class. """
 
@@ -347,15 +360,15 @@ class PIDLockFile_TestCase(scaffold.TestCase):
     def test_inherits_from_linkfilelock(self):
         """ Should inherit from LinkFileLock. """
         instance = self.test_instance
-        self.failUnlessIsInstance(instance, lockfile.LinkFileLock)
+        self.failUnlessIsInstance(instance, LinkLockFile)
 
     def test_has_specified_path(self):
         """ Should have specified path. """
         instance = self.test_instance
         expect_path = self.scenario['path']
-        self.failUnlessEqual(expect_path, instance.path)
+        self.assertEqual(expect_path, instance.path)
 
-
+
 class PIDLockFile_read_pid_TestCase(scaffold.TestCase):
     """ Test cases for PIDLockFile.read_pid method. """
 
@@ -373,9 +386,9 @@ class PIDLockFile_read_pid_TestCase(scaffold.TestCase):
         test_pid = self.scenario['pidfile_pid']
         expect_pid = test_pid
         result = instance.read_pid()
-        self.failUnlessEqual(expect_pid, result)
+        self.assertEqual(expect_pid, result)
 
-
+
 class PIDLockFile_acquire_TestCase(scaffold.TestCase):
     """ Test cases for PIDLockFile.acquire function. """
 
@@ -391,8 +404,8 @@ class PIDLockFile_acquire_TestCase(scaffold.TestCase):
     def test_calls_linkfilelock_acquire(self):
         """ Should first call LinkFileLock.acquire method. """
         instance = self.test_instance
-        expect_mock_output = u"""\
-            Called lockfile.LinkFileLock.acquire()
+        expect_mock_output = """\
+            Called LinkLockFile.acquire()
             ...
             """
         instance.acquire()
@@ -402,8 +415,8 @@ class PIDLockFile_acquire_TestCase(scaffold.TestCase):
         """ Should call LinkFileLock.acquire method with specified timeout. """
         instance = self.test_instance
         test_timeout = object()
-        expect_mock_output = u"""\
-            Called lockfile.LinkFileLock.acquire(timeout=%(test_timeout)r)
+        expect_mock_output = """\
+            Called LinkLockFile.acquire(timeout=%(test_timeout)r)
             ...
             """ % vars()
         instance.acquire(timeout=test_timeout)
@@ -413,7 +426,7 @@ class PIDLockFile_acquire_TestCase(scaffold.TestCase):
         """ Should request writing current PID to specified file. """
         instance = self.test_instance
         pidfile_path = self.scenario['path']
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             ...
             Called pidlockfile.write_pid_to_pidfile(%(pidfile_path)r)
             """ % vars()
@@ -426,14 +439,14 @@ class PIDLockFile_acquire_TestCase(scaffold.TestCase):
         set_pidlockfile_scenario(self, 'not-exist-write-busy')
         instance = self.test_instance
         pidfile_path = self.scenario['path']
-        mock_error = OSError(errno.EBUSY, u"Bad stuff", pidfile_path)
+        mock_error = OSError(errno.EBUSY, "Bad stuff", pidfile_path)
         pidlockfile.write_pid_to_pidfile.mock_raises = mock_error
         expect_error = pidlockfile.LockFailed
-        self.failUnlessRaises(
+        self.assertRaises(
             expect_error,
             instance.acquire)
 
-
+
 class PIDLockFile_release_TestCase(scaffold.TestCase):
     """ Test cases for PIDLockFile.release function. """
 
@@ -451,10 +464,10 @@ class PIDLockFile_release_TestCase(scaffold.TestCase):
         instance = self.test_instance
         expect_error = lockfile.NotLocked
         unwanted_mock_output = (
-            u"..."
-            u"Called pidlockfile.remove_existing_pidfile"
-            u"...")
-        self.failUnlessRaises(
+            "..."
+            "Called pidlockfile.remove_existing_pidfile"
+            "...")
+        self.assertRaises(
             expect_error,
             instance.release)
         self.failIfMockCheckerMatch(unwanted_mock_output)
@@ -465,10 +478,10 @@ class PIDLockFile_release_TestCase(scaffold.TestCase):
         instance = self.test_instance
         expect_error = lockfile.NotMyLock
         unwanted_mock_output = (
-            u"..."
-            u"Called pidlockfile.remove_existing_pidfile"
-            u"...")
-        self.failUnlessRaises(
+            "..."
+            "Called pidlockfile.remove_existing_pidfile"
+            "...")
+        self.assertRaises(
             expect_error,
             instance.release)
         self.failIfMockCheckerMatch(unwanted_mock_output)
@@ -478,7 +491,7 @@ class PIDLockFile_release_TestCase(scaffold.TestCase):
         set_pidlockfile_scenario(self, 'exist-current-pid-locked')
         instance = self.test_instance
         pidfile_path = self.scenario['path']
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             ...
             Called pidlockfile.remove_existing_pidfile(%(pidfile_path)r)
             ...
@@ -490,14 +503,14 @@ class PIDLockFile_release_TestCase(scaffold.TestCase):
         """ Should finally call LinkFileLock.release method. """
         set_pidlockfile_scenario(self, 'exist-current-pid-locked')
         instance = self.test_instance
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             ...
-            Called lockfile.LinkFileLock.release()
+            Called LinkLockFile.release()
             """
         instance.release()
         self.failUnlessMockCheckerMatch(expect_mock_output)
 
-
+
 class PIDLockFile_break_lock_TestCase(scaffold.TestCase):
     """ Test cases for PIDLockFile.break_lock function. """
 
@@ -513,8 +526,8 @@ class PIDLockFile_break_lock_TestCase(scaffold.TestCase):
     def test_calls_linkfilelock_break_lock(self):
         """ Should first call LinkFileLock.break_lock method. """
         instance = self.test_instance
-        expect_mock_output = u"""\
-            Called lockfile.LinkFileLock.break_lock()
+        expect_mock_output = """\
+            Called LinkLockFile.break_lock()
             ...
             """
         instance.break_lock()
@@ -524,14 +537,14 @@ class PIDLockFile_break_lock_TestCase(scaffold.TestCase):
         """ Should request removal of specified PID file. """
         instance = self.test_instance
         pidfile_path = self.scenario['path']
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             ...
             Called pidlockfile.remove_existing_pidfile(%(pidfile_path)r)
             """ % vars()
         instance.break_lock()
         self.failUnlessMockCheckerMatch(expect_mock_output)
 
-
+
 class read_pid_from_pidfile_TestCase(scaffold.TestCase):
     """ Test cases for read_pid_from_pidfile function. """
 
@@ -547,7 +560,7 @@ class read_pid_from_pidfile_TestCase(scaffold.TestCase):
         """ Should attempt to open specified pidfile filename. """
         set_pidlockfile_scenario(self, 'exist-other-pid')
         pidfile_path = self.scenario['path']
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             Called builtins.open(%(pidfile_path)r, 'r')
             """ % vars()
         dummy = pidlockfile.read_pid_from_pidfile(pidfile_path)
@@ -561,7 +574,7 @@ class read_pid_from_pidfile_TestCase(scaffold.TestCase):
         expect_pid = self.scenario['pidfile_pid']
         pid = pidlockfile.read_pid_from_pidfile(pidfile_path)
         scaffold.mock_restore()
-        self.failUnlessEqual(expect_pid, pid)
+        self.assertEqual(expect_pid, pid)
 
     def test_returns_none_when_file_nonexist(self):
         """ Should return None when the PID file does not exist. """
@@ -576,7 +589,7 @@ class read_pid_from_pidfile_TestCase(scaffold.TestCase):
         set_pidlockfile_scenario(self, 'exist-read-denied')
         pidfile_path = self.scenario['path']
         expect_error = EnvironmentError
-        self.failUnlessRaises(
+        self.assertRaises(
             expect_error,
             pidlockfile.read_pid_from_pidfile, pidfile_path)
 
@@ -585,7 +598,7 @@ class read_pid_from_pidfile_TestCase(scaffold.TestCase):
         set_pidlockfile_scenario(self, 'exist-empty')
         pidfile_path = self.scenario['path']
         expect_error = pidlockfile.PIDFileParseError
-        self.failUnlessRaises(
+        self.assertRaises(
             expect_error,
             pidlockfile.read_pid_from_pidfile, pidfile_path)
 
@@ -594,11 +607,11 @@ class read_pid_from_pidfile_TestCase(scaffold.TestCase):
         set_pidlockfile_scenario(self, 'exist-invalid')
         pidfile_path = self.scenario['path']
         expect_error = pidlockfile.PIDFileParseError
-        self.failUnlessRaises(
+        self.assertRaises(
             expect_error,
             pidlockfile.read_pid_from_pidfile, pidfile_path)
 
-
+
 class remove_existing_pidfile_TestCase(scaffold.TestCase):
     """ Test cases for remove_existing_pidfile function. """
 
@@ -607,7 +620,7 @@ class remove_existing_pidfile_TestCase(scaffold.TestCase):
         setup_pidfile_fixtures(self)
 
         scaffold.mock(
-            u"os.remove",
+            "os.remove",
             tracker=self.mock_tracker)
 
     def tearDown(self):
@@ -618,7 +631,7 @@ class remove_existing_pidfile_TestCase(scaffold.TestCase):
         """ Should attempt to remove specified PID file filename. """
         set_pidlockfile_scenario(self, 'exist-current-pid')
         pidfile_path = self.scenario['path']
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             Called os.remove(%(pidfile_path)r)
             """ % vars()
         pidlockfile.remove_existing_pidfile(pidfile_path)
@@ -629,9 +642,9 @@ class remove_existing_pidfile_TestCase(scaffold.TestCase):
         """ Should ignore error if file does not exist. """
         set_pidlockfile_scenario(self, 'not-exist')
         pidfile_path = self.scenario['path']
-        mock_error = OSError(errno.ENOENT, u"Not there", pidfile_path)
+        mock_error = OSError(errno.ENOENT, "Not there", pidfile_path)
         os.remove.mock_raises = mock_error
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             Called os.remove(%(pidfile_path)r)
             """ % vars()
         pidlockfile.remove_existing_pidfile(pidfile_path)
@@ -642,14 +655,14 @@ class remove_existing_pidfile_TestCase(scaffold.TestCase):
         """ Should propagate any OSError other than ENOENT. """
         set_pidlockfile_scenario(self, 'exist-current-pid')
         pidfile_path = self.scenario['path']
-        mock_error = OSError(errno.EACCES, u"Denied", pidfile_path)
+        mock_error = OSError(errno.EACCES, "Denied", pidfile_path)
         os.remove.mock_raises = mock_error
-        self.failUnlessRaises(
+        self.assertRaises(
             type(mock_error),
             pidlockfile.remove_existing_pidfile,
             pidfile_path)
 
-
+
 class write_pid_to_pidfile_TestCase(scaffold.TestCase):
     """ Test cases for write_pid_to_pidfile function. """
 
@@ -666,8 +679,8 @@ class write_pid_to_pidfile_TestCase(scaffold.TestCase):
         """ Should attempt to open specified PID file filename. """
         pidfile_path = self.scenario['path']
         expect_flags = (os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        expect_mode = 0644
-        expect_mock_output = u"""\
+        expect_mode = 0o644
+        expect_mock_output = """\
             Called os.open(%(pidfile_path)r, %(expect_flags)r, %(expect_mode)r)
             ...
             """ % vars()
@@ -679,23 +692,23 @@ class write_pid_to_pidfile_TestCase(scaffold.TestCase):
         """ Should write the current PID to the specified file. """
         pidfile_path = self.scenario['path']
         self.scenario['pidfile'].close = scaffold.Mock(
-            u"PIDLockFile.close",
+            "PIDLockFile.close",
             tracker=self.mock_tracker)
-        expect_line = u"%(pid)d\n" % self.scenario
+        expect_line = "%(pid)d\n" % self.scenario
         pidlockfile.write_pid_to_pidfile(pidfile_path)
         scaffold.mock_restore()
-        self.failUnlessEqual(expect_line, self.scenario['pidfile'].getvalue())
+        self.assertEqual(expect_line, self.scenario['pidfile'].getvalue())
 
     def test_closes_file_after_write(self):
         """ Should close the specified file after writing. """
         pidfile_path = self.scenario['path']
         self.scenario['pidfile'].write = scaffold.Mock(
-            u"PIDLockFile.write",
+            "PIDLockFile.write",
             tracker=self.mock_tracker)
         self.scenario['pidfile'].close = scaffold.Mock(
-            u"PIDLockFile.close",
+            "PIDLockFile.close",
             tracker=self.mock_tracker)
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             ...
             Called PIDLockFile.write(...)
             Called PIDLockFile.close()
@@ -704,7 +717,7 @@ class write_pid_to_pidfile_TestCase(scaffold.TestCase):
         scaffold.mock_restore()
         self.failUnlessMockCheckerMatch(expect_mock_output)
 
-
+
 class TimeoutPIDLockFile_TestCase(scaffold.TestCase):
     """ Test cases for ‘TimeoutPIDLockFile’ class. """
 
@@ -717,10 +730,10 @@ class TimeoutPIDLockFile_TestCase(scaffold.TestCase):
         pidfile_path = self.pidlockfile_scenario['path']
 
         scaffold.mock(
-            u"pidlockfile.PIDLockFile.__init__",
+            "pidlockfile.PIDLockFile.__init__",
             tracker=self.mock_tracker)
         scaffold.mock(
-            u"pidlockfile.PIDLockFile.acquire",
+            "pidlockfile.PIDLockFile.acquire",
             tracker=self.mock_tracker)
 
         self.scenario = {
@@ -755,12 +768,12 @@ class TimeoutPIDLockFile_TestCase(scaffold.TestCase):
         """ Should have specified ‘acquire_timeout’ value. """
         instance = self.test_instance
         expect_timeout = self.test_kwargs['acquire_timeout']
-        self.failUnlessEqual(expect_timeout, instance.acquire_timeout)
+        self.assertEqual(expect_timeout, instance.acquire_timeout)
 
     def test_calls_superclass_init(self):
         """ Should call the superclass ‘__init__’. """
         expect_path = self.test_kwargs['path']
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             Called pidlockfile.PIDLockFile.__init__(
                 %(expect_path)r)
             """ % vars()
@@ -772,7 +785,7 @@ class TimeoutPIDLockFile_TestCase(scaffold.TestCase):
         test_timeout = object()
         expect_timeout = test_timeout
         self.mock_tracker.clear()
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             Called pidlockfile.PIDLockFile.acquire(%(expect_timeout)r)
             """ % vars()
         instance.acquire(test_timeout)
@@ -784,7 +797,7 @@ class TimeoutPIDLockFile_TestCase(scaffold.TestCase):
         test_timeout = self.test_kwargs['acquire_timeout']
         expect_timeout = test_timeout
         self.mock_tracker.clear()
-        expect_mock_output = u"""\
+        expect_mock_output = """\
             Called pidlockfile.PIDLockFile.acquire(%(expect_timeout)r)
             """ % vars()
         instance.acquire()

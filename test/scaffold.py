@@ -42,18 +42,22 @@ if not parent_dir in sys.path:
 # Disable all but the most critical logging messages
 logging.disable(logging.CRITICAL)
 
-
-def get_python_module_names(file_list, file_suffix=u'.py'):
+
+def get_python_module_names(file_list, file_suffix='.py'):
     """ Return a list of module names from a filename list. """
-    module_names = [m[:m.rfind(file_suffix)] for m in file_list
-        if m.endswith(file_suffix)]
+    module_names = [
+        m[:m.rfind(file_suffix)] for m in file_list
+        if m.endswith(file_suffix)
+    ]
     return module_names
 
 
 def get_test_module_names(module_list, module_prefix='test_'):
     """ Return the list of module names that qualify as test modules. """
-    module_names = [m for m in module_list
-        if m.startswith(module_prefix)]
+    module_names = [
+        m for m in module_list
+        if m.startswith(module_prefix)
+    ]
     return module_names
 
 
@@ -66,16 +70,16 @@ def make_suite(path=test_dir):
 
     return suite
 
-
+
 def get_function_signature(func):
     """ Get the function signature as a mapping of attributes. """
-    arg_count = func.func_code.co_argcount
-    arg_names = func.func_code.co_varnames[:arg_count]
+    arg_count = func.__code__.co_argcount
+    arg_names = func.__code__.co_varnames[:arg_count]
 
     arg_defaults = {}
     func_defaults = ()
-    if func.func_defaults is not None:
-        func_defaults = func.func_defaults
+    if func.__defaults__ is not None:
+        func_defaults = func.__defaults__
     for (name, value) in zip(arg_names[::-1], func_defaults[::-1]):
         arg_defaults[name] = value
 
@@ -84,14 +88,14 @@ def get_function_signature(func):
         'arg_count': arg_count,
         'arg_names': arg_names,
         'arg_defaults': arg_defaults,
-        }
+    }
 
-    non_pos_names = list(func.func_code.co_varnames[arg_count:])
+    non_pos_names = list(func.__code__.co_varnames[arg_count:])
     COLLECTS_ARBITRARY_POSITIONAL_ARGS = 0x04
-    if func.func_code.co_flags & COLLECTS_ARBITRARY_POSITIONAL_ARGS:
+    if func.__code__.co_flags & COLLECTS_ARBITRARY_POSITIONAL_ARGS:
         signature['var_args'] = non_pos_names.pop(0)
     COLLECTS_ARBITRARY_KEYWORD_ARGS = 0x08
-    if func.func_code.co_flags & COLLECTS_ARBITRARY_KEYWORD_ARGS:
+    if func.__code__.co_flags & COLLECTS_ARBITRARY_KEYWORD_ARGS:
         signature['var_kw_args'] = non_pos_names.pop(0)
 
     return signature
@@ -105,23 +109,23 @@ def format_function_signature(func):
     for arg_name in signature['arg_names']:
         if arg_name in signature['arg_defaults']:
             arg_default = signature['arg_defaults'][arg_name]
-            arg_text_template = u"%(arg_name)s=%(arg_default)r"
+            arg_text_template = "%(arg_name)s=%(arg_default)r"
         else:
-            arg_text_template = u"%(arg_name)s"
+            arg_text_template = "%(arg_name)s"
         args_text.append(arg_text_template % vars())
     if 'var_args' in signature:
-        args_text.append(u"*%(var_args)s" % signature)
+        args_text.append("*%(var_args)s" % signature)
     if 'var_kw_args' in signature:
-        args_text.append(u"**%(var_kw_args)s" % signature)
-    signature_args_text = u", ".join(args_text)
+        args_text.append("**%(var_kw_args)s" % signature)
+    signature_args_text = ", ".join(args_text)
 
     func_name = signature['name']
     signature_text = (
-        u"%(func_name)s(%(signature_args_text)s)" % vars())
+        "%(func_name)s(%(signature_args_text)s)" % vars())
 
     return signature_text
 
-
+
 class TestCase(unittest.TestCase):
     """ Test case behaviour. """
 
@@ -134,15 +138,15 @@ class TestCase(unittest.TestCase):
 
             """
         try:
-            super(TestCase, self).failUnlessRaises(
+            super(TestCase, self).assertRaises(
                 exc_class, func, *args, **kwargs)
         except self.failureException:
             exc_class_name = exc_class.__name__
             msg = (
-                u"Exception %(exc_class_name)s not raised"
-                u" for function call:"
-                u" func=%(func)r args=%(args)r kwargs=%(kwargs)r"
-                ) % vars()
+                "Exception %(exc_class_name)s not raised"
+                " for function call:"
+                " func=%(func)r args=%(args)r kwargs=%(kwargs)r"
+            ) % vars()
             raise self.failureException(msg)
 
     def failIfIs(self, first, second, msg=None):
@@ -154,7 +158,7 @@ class TestCase(unittest.TestCase):
             """
         if first is second:
             if msg is None:
-                msg = u"%(first)r is %(second)r" % vars()
+                msg = "%(first)r is %(second)r" % vars()
             raise self.failureException(msg)
 
     def failUnlessIs(self, first, second, msg=None):
@@ -166,7 +170,7 @@ class TestCase(unittest.TestCase):
             """
         if first is not second:
             if msg is None:
-                msg = u"%(first)r is not %(second)r" % vars()
+                msg = "%(first)r is not %(second)r" % vars()
             raise self.failureException(msg)
 
     assertIs = failUnlessIs
@@ -181,7 +185,7 @@ class TestCase(unittest.TestCase):
             """
         if second in first:
             if msg is None:
-                msg = u"%(second)r is in %(first)r" % vars()
+                msg = "%(second)r is in %(first)r" % vars()
             raise self.failureException(msg)
 
     def failUnlessIn(self, first, second, msg=None):
@@ -193,7 +197,7 @@ class TestCase(unittest.TestCase):
             """
         if second not in first:
             if msg is None:
-                msg = u"%(second)r is not in %(first)r" % vars()
+                msg = "%(second)r is not in %(first)r" % vars()
             raise self.failureException(msg)
 
     assertIn = failUnlessIn
@@ -215,15 +219,15 @@ class TestCase(unittest.TestCase):
         got = textwrap.dedent(got)
         checker_optionflags = reduce(operator.or_, [
             doctest.ELLIPSIS,
-            ])
+        ])
         if not checker.check_output(want, got, checker_optionflags):
             if msg is None:
                 diff = checker.output_difference(
                     example, got, checker_optionflags)
-                msg = u"\n".join([
-                    u"Output received did not match expected output",
-                    u"%(diff)s",
-                    ]) % vars()
+                msg = "\n".join([
+                    "Output received did not match expected output",
+                    "%(diff)s",
+                ]) % vars()
             raise self.failureException(msg)
 
     assertOutputCheckerMatch = failUnlessOutputCheckerMatch
@@ -242,10 +246,10 @@ class TestCase(unittest.TestCase):
         if not tracker.check(want):
             if msg is None:
                 diff = tracker.diff(want)
-                msg = u"\n".join([
-                    u"Output received did not match expected output",
-                    u"%(diff)s",
-                    ]) % vars()
+                msg = "\n".join([
+                    "Output received did not match expected output",
+                    "%(diff)s",
+                ]) % vars()
             raise self.failureException(msg)
 
     def failIfMockCheckerMatch(self, want, tracker=None, msg=None):
@@ -262,10 +266,10 @@ class TestCase(unittest.TestCase):
         if tracker.check(want):
             if msg is None:
                 diff = tracker.diff(want)
-                msg = u"\n".join([
-                    u"Output received matched specified undesired output",
-                    u"%(diff)s",
-                    ]) % vars()
+                msg = "\n".join([
+                    "Output received matched specified undesired output",
+                    "%(diff)s",
+                ]) % vars()
             raise self.failureException(msg)
 
     assertMockCheckerMatch = failUnlessMockCheckerMatch
@@ -281,8 +285,8 @@ class TestCase(unittest.TestCase):
         if isinstance(obj, classes):
             if msg is None:
                 msg = (
-                    u"%(obj)r is an instance of one of %(classes)r"
-                    ) % vars()
+                    "%(obj)r is an instance of one of %(classes)r"
+                ) % vars()
             raise self.failureException(msg)
 
     def failUnlessIsInstance(self, obj, classes, msg=None):
@@ -295,8 +299,8 @@ class TestCase(unittest.TestCase):
         if not isinstance(obj, classes):
             if msg is None:
                 msg = (
-                    u"%(obj)r is not an instance of any of %(classes)r"
-                    ) % vars()
+                    "%(obj)r is not an instance of any of %(classes)r"
+                ) % vars()
             raise self.failureException(msg)
 
     assertIsInstance = failUnlessIsInstance
@@ -310,7 +314,7 @@ class TestCase(unittest.TestCase):
 
             """
         func_in_traceback = False
-        expect_code = function.func_code
+        expect_code = function.__code__
         current_traceback = traceback
         while current_traceback is not None:
             if expect_code is current_traceback.tb_frame.f_code:
@@ -321,9 +325,9 @@ class TestCase(unittest.TestCase):
         if not func_in_traceback:
             if msg is None:
                 msg = (
-                    u"Traceback did not lead to original function"
-                    u" %(function)s"
-                    ) % vars()
+                    "Traceback did not lead to original function"
+                    " %(function)s"
+                ) % vars()
             raise self.failureException(msg)
 
     assertFunctionInTraceback = failUnlessFunctionInTraceback
@@ -357,19 +361,20 @@ class TestCase(unittest.TestCase):
             if msg is None:
                 first_signature_text = format_function_signature(first)
                 second_signature_text = format_function_signature(second)
-                msg = (textwrap.dedent(u"""\
+                msg = (
+                    textwrap.dedent("""\
                     Function signatures do not match:
                         %(first_signature)r != %(second_signature)r
                     Expected:
                         %(first_signature_text)s
                     Got:
                         %(second_signature_text)s""")
-                    ) % vars()
+                ) % vars()
             raise self.failureException(msg)
 
     assertFunctionSignatureMatch = failUnlessFunctionSignatureMatch
 
-
+
 class Exception_TestCase(TestCase):
     """ Test cases for exception classes. """
 
@@ -380,7 +385,7 @@ class Exception_TestCase(TestCase):
 
     def setUp(self):
         """ Set up test fixtures. """
-        for exc_type, params in self.valid_exceptions.items():
+        for exc_type, params in list(self.valid_exceptions.items()):
             args = (None, ) * params['min_args']
             params['args'] = args
             instance = exc_type(*args)
@@ -390,20 +395,20 @@ class Exception_TestCase(TestCase):
 
     def test_exception_instance(self):
         """ Exception instance should be created. """
-        for params in self.valid_exceptions.values():
+        for params in list(self.valid_exceptions.values()):
             instance = params['instance']
             self.failIfIs(None, instance)
 
     def test_exception_types(self):
         """ Exception instances should match expected types. """
-        for params in self.valid_exceptions.values():
+        for params in list(self.valid_exceptions.values()):
             instance = params['instance']
             for match_type in params['types']:
                 match_type_name = match_type.__name__
                 fail_msg = (
-                    u"%(instance)r is not an instance of"
-                    u" %(match_type_name)s"
-                    ) % vars()
-                self.failUnless(
+                    "%(instance)r is not an instance of"
+                    " %(match_type_name)s"
+                ) % vars()
+                self.assertTrue(
                     isinstance(instance, match_type),
                     msg=fail_msg)
