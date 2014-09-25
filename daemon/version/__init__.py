@@ -12,7 +12,7 @@
 """ Version information for the python-daemon distribution. """
 
 version_info = {
-    'version_string': "1.5.7",
+    'version_string': "1.5.8",
     'revno': '0000',
     'date': '2010-00-00 00:00:00',
 }
