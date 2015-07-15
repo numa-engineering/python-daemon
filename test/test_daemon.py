@@ -14,6 +14,7 @@
     """
 
 import os
+import pwd
 import sys
 import tempfile
 import resource
@@ -194,6 +195,22 @@ class DaemonContext_TestCase(scaffold.TestCase):
         expect_id = os.getgid()
         instance = daemon.daemon.DaemonContext(**args)
         self.assertEqual(expect_id, instance.gid)
+
+    def test_has_specified_initgroups(self):
+        """ Should have specified initgroups option. """
+        args = dict(
+            initgroups = object(),
+            )
+        expect_initgroups = args['initgroups']
+        instance = daemon.daemon.DaemonContext(**args)
+        self.assertEqual(expect_initgroups, instance.initgroups)
+
+    def test_has_default_initgroups(self):
+        """ Should have default umask option. """
+        args = dict()
+        expect_initgroups = True
+        instance = daemon.daemon.DaemonContext(**args)
+        self.assertEqual(expect_initgroups, instance.initgroups)
 
     def test_has_specified_detach_process(self):
         """ Should have specified detach_process option. """
@@ -483,16 +500,19 @@ class DaemonContext_open_TestCase(scaffold.TestCase):
         instance.open()
         self.failUnlessMockCheckerMatch(expect_mock_output)
 
-    def test_changes_owner_to_specified_uid_and_gid(self):
+    def test_changes_owner_to_specified_uid_gid_and_initgroups(self):
         """ Should change process UID and GID to `uid` and `gid` options. """
         instance = self.test_instance
         uid = object()
         gid = object()
+        initgroups = object()
         instance.uid = uid
         instance.gid = gid
+        instance.initgroups = initgroups
         expect_mock_output = """\
             ...
-            Called daemon.daemon.change_process_owner(%(uid)r, %(gid)r)
+            Called daemon.daemon.change_process_owner(
+                %(uid)r, %(gid)r, %(initgroups)r)
             ...
             """ % vars()
         instance.open()
@@ -1106,12 +1126,19 @@ class change_process_owner_TestCase(scaffold.TestCase):
         scaffold.mock(
             "os.setgid",
             tracker=self.mock_tracker)
+        scaffold.mock(
+            "os.initgroups",
+            tracker=self.mock_tracker)
+        scaffold.mock(
+            "pwd.getpwuid",
+            tracker=self.mock_tracker)
 
         self.test_uid = object()
         self.test_gid = object()
         self.test_args = dict(
             uid=self.test_uid,
             gid=self.test_gid,
+            initgroups=False
             )
 
     def tearDown(self):
@@ -1123,7 +1150,7 @@ class change_process_owner_TestCase(scaffold.TestCase):
 
             Since the process requires appropriate privilege to use
             either of `setuid` or `setgid`, changing the UID must be
-            done last.
+            done last. This is for the case where `initgroups` is false
 
             """
         args = self.test_args
