@@ -25,6 +25,7 @@ import errno
 import signal
 import socket
 import atexit
+import pwd
 
 if sys.version_info >= (3, 0):
     basestring = str
@@ -190,6 +191,13 @@ class DaemonContext(object):
             relinquish any effective privilege elevation inherited by the
             process.
 
+        `initgroups`
+            :Default: ``True``
+
+            If true, uses os.initgroups to set the supplementary groups to
+            match the groups of the user with the given `uid`. Otherwise,
+            the `gid` is set using `os.setgid`.
+
         `prevent_core`
             :Default: ``True``
 
@@ -228,6 +236,7 @@ class DaemonContext(object):
         umask=0,
         uid=None,
         gid=None,
+        initgroups=True,
         prevent_core=True,
         detach_process=None,
         files_preserve=None,
@@ -241,6 +250,7 @@ class DaemonContext(object):
         self.chroot_directory = chroot_directory
         self.working_directory = working_directory
         self.umask = umask
+        self.initgroups = initgroups
         self.prevent_core = prevent_core
         self.files_preserve = files_preserve
         self.pidfile = pidfile
@@ -296,6 +306,9 @@ class DaemonContext(object):
             * Set the process UID and GID to the `uid` and `gid` attribute
               values.
 
+            * If `initgroups` attribute is true, set the supplementary groups
+              to match the groups of the user given by the `uid` attribute.
+
             * Close all open file descriptors. This excludes those listed in
               the `files_preserve` attribute, and those that correspond to the
               `stdin`, `stdout`, or `stderr` attributes.
@@ -343,7 +356,7 @@ class DaemonContext(object):
 
         change_file_creation_mask(self.umask)
         change_working_directory(self.working_directory)
-        change_process_owner(self.uid, self.gid)
+        change_process_owner(self.uid, self.gid, self.initgroups)
 
         if self.detach_process:
             detach_process_context()
@@ -523,16 +536,28 @@ def change_file_creation_mask(mask):
         raise error
 
 
-def change_process_owner(uid, gid):
+def change_process_owner(uid, gid, initgroups):
     """ Change the owning UID and GID of this process.
 
         Sets the GID then the UID of the process (in that order, to
         avoid permission errors) to the specified `gid` and `uid`
         values. Requires appropriate OS privileges for this process.
+        If `initgroups` is true, all groups of the user with UID
+        `uid` are set as supplementary groups.
 
         """
+    if initgroups:
+        try:
+            pwd_entry = pwd.getpwuid(uid)
+        except KeyError:
+            initgroups = False
+
     try:
-        os.setgid(gid)
+        if initgroups:
+            os.initgroups(pwd_entry.pw_name, gid)
+        else:
+            os.setgid(gid)
+
         os.setuid(uid)
     except Exception as exc:
         error = DaemonOSEnvironmentError(
